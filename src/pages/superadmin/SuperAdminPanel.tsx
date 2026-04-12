@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { SuperDashboard, IUser, IStore } from "../../types";
 import {
-  apiGetSuperDashboard, apiGetAllUsers, apiToggleUser, apiDeleteUser,
+  apiGetSuperDashboard, apiGetAllUsers, apiToggleUser, apiDeleteUser, apiGetUserDetails, apiUpdateUser,
   apiGetAllStoresAdmin, apiToggleStore, apiDeleteStoreAdmin, apiUpdateStoreSubscription,
   apiGetSaaSPlans, apiCreateSaaSPlan, apiUpdateSaaSPlan, apiDeleteSaaSPlan, apiGetDetailedAnalytics,
   apiGetPlatformSettings, apiUpdatePlatformSettings, apiUploadImage,
@@ -466,6 +466,11 @@ const SAStores: React.FC = () => {
 const SAUsers: React.FC = () => {
   const [users, setUsers] = useState<IUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editUser, setEditUser] = useState<any>(null);
+  const [editStore, setEditStore] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
 
   const load = async () => { try { const { data } = await apiGetAllUsers(); setUsers(data.users); } catch {} setLoading(false); };
   useEffect(() => { load(); }, []);
@@ -473,10 +478,42 @@ const SAUsers: React.FC = () => {
   const toggle = async (id: string) => { try { await apiToggleUser(id); toast.success("Updated"); load(); } catch { toast.error("Error"); } };
   const remove = async (id: string) => { if (!confirm("Delete this user and ALL their data?")) return; try { await apiDeleteUser(id); toast.success("Deleted"); load(); } catch { toast.error("Error"); } };
 
+  const openEdit = async (id: string) => {
+    try {
+      const { data } = await apiGetUserDetails(id);
+      setEditUser(data.user);
+      setEditStore(data.store);
+      setEditForm({ name: data.user.name, email: data.user.email, phone: data.user.phone, password: "" });
+    } catch { toast.error("Failed to load user details"); }
+  };
+
+  const handleSave = async () => {
+    if (!editUser) return;
+    setSaving(true);
+    try {
+      const payload: any = { name: editForm.name, email: editForm.email, phone: editForm.phone };
+      if (editForm.password) payload.password = editForm.password;
+      await apiUpdateUser(editUser._id, payload);
+      toast.success("User updated!");
+      setEditUser(null);
+      load();
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Update failed");
+    }
+    setSaving(false);
+  };
+
+  const filtered = users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
+
   if (loading) return <Loader />;
 
   return (
     <div className="fade-up">
+      {/* Search */}
+      <div style={{ marginBottom: 16 }}>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or email..." style={{ padding: "10px 16px", borderRadius: 10, border: "1px solid #E2E8F0", width: 320, fontSize: 14, outline: "none" }} />
+      </div>
+
       <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E2E8F0", overflow: "hidden" }}>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700 }}>
@@ -488,7 +525,7 @@ const SAUsers: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
+              {filtered.map((u) => (
                 <tr key={u._id} style={{ borderBottom: "1px solid #F1F5F9" }}>
                   <td style={{ padding: "14px 16px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -507,6 +544,7 @@ const SAUsers: React.FC = () => {
                   <td style={{ padding: "14px 16px", fontSize: 13, color: "#94A3B8" }}>{new Date(u.createdAt).toLocaleDateString()}</td>
                   <td style={{ padding: "14px 16px" }}>
                     <div style={{ display: "flex", gap: 8 }}>
+                      <button onClick={() => openEdit(u._id)} className="btn-press" style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #6366F1", background: "none", cursor: "pointer", fontSize: 12, color: "#6366F1" }}>View / Edit</button>
                       <button onClick={() => toggle(u._id)} className="btn-press" style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #E2E8F0", background: "none", cursor: "pointer", fontSize: 12, color: u.isActive ? "#F59E0B" : "#10B981" }}>{u.isActive ? "Block" : "Unblock"}</button>
                       <button onClick={() => remove(u._id)} className="btn-press" style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #FCA5A5", background: "none", cursor: "pointer", fontSize: 12, color: "#EF4444", display: "flex", alignItems: "center", gap: 4 }}><IconTrash /></button>
                     </div>
@@ -516,8 +554,56 @@ const SAUsers: React.FC = () => {
             </tbody>
           </table>
         </div>
-        {!users.length && <p style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>No users yet</p>}
+        {!filtered.length && <p style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>No users found</p>}
       </div>
+
+      {/* Edit User Modal */}
+      {editUser && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }} onClick={() => setEditUser(null)}>
+          <div style={{ background: "#fff", borderRadius: 20, padding: 32, width: 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800, color: "#1E293B", margin: 0 }}>User Details</h3>
+              <button onClick={() => setEditUser(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#94A3B8", fontSize: 20 }}><IconClose /></button>
+            </div>
+
+            {/* Store Info */}
+            {editStore && (
+              <div style={{ background: "#F8FAFC", borderRadius: 12, padding: 16, marginBottom: 20, border: "1px solid #E2E8F0" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#94A3B8", textTransform: "uppercase", marginBottom: 8 }}>Store Info</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#1E293B" }}>{editStore.name}</div>
+                <div style={{ fontSize: 13, color: "#64748B", marginTop: 4 }}>Subdomain: {editStore.subdomain}.qwikwebs.com</div>
+                <div style={{ fontSize: 13, color: "#64748B" }}>Theme: {editStore.theme} | Plan: {editStore.subscriptionPlan}</div>
+              </div>
+            )}
+
+            {/* Edit Form */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#64748B", marginBottom: 6, display: "block" }}>Name</label>
+                <input value={editForm.name} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 14, outline: "none" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#64748B", marginBottom: 6, display: "block" }}>Email</label>
+                <input value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 14, outline: "none" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#64748B", marginBottom: 6, display: "block" }}>Phone</label>
+                <input value={editForm.phone} onChange={e => setEditForm(p => ({ ...p, phone: e.target.value }))} style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 14, outline: "none" }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "#64748B", marginBottom: 6, display: "block" }}>New Password <span style={{ fontSize: 11, color: "#94A3B8" }}>(leave blank to keep current)</span></label>
+                <input type="password" value={editForm.password} onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1px solid #E2E8F0", fontSize: 14, outline: "none" }} />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+              <button onClick={() => setEditUser(null)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "none", cursor: "pointer", fontWeight: 600, fontSize: 14, color: "#64748B" }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", color: "#fff", cursor: saving ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 14, opacity: saving ? 0.7 : 1 }}>{saving ? "Saving..." : "Save Changes"}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

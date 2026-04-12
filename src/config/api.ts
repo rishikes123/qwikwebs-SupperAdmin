@@ -66,6 +66,8 @@ export const apiUploadImage = (file: File) => {
 // Super Admin
 export const apiGetSuperDashboard = () => API.get("/superadmin/dashboard");
 export const apiGetAllUsers = () => API.get("/superadmin/users");
+export const apiGetUserDetails = (id: string) => API.get(`/superadmin/users/${id}`);
+export const apiUpdateUser = (id: string, data: any) => API.put(`/superadmin/users/${id}`, data);
 export const apiToggleUser = (id: string) => API.put(`/superadmin/users/${id}/toggle`);
 export const apiDeleteUser = (id: string) => API.delete(`/superadmin/users/${id}`);
 export const apiGetAllStoresAdmin = () => API.get("/superadmin/stores");
