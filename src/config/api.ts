@@ -23,6 +23,7 @@ API.interceptors.response.use(
 // Auth
 export const apiRegister = (data: any) => API.post("/auth/register", data);
 export const apiLogin = (data: any) => API.post("/auth/login", data);
+export const apiGoogleAuth = (data: { idToken: string; role: string }) => API.post("/auth/google", data);
 export const apiGetMe = () => API.get("/auth/me");
 export const apiUpdateProfile = (data: any) => API.put("/auth/profile", data);
 

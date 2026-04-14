@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { GoogleLogin, CredentialResponse } from "@react-oauth/google";
 import { useAuth } from "../context/AuthContext";
-import { apiRegister, apiLogin } from "../config/api";
+import { apiRegister, apiLogin, apiGoogleAuth } from "../config/api";
 
 const AuthPage: React.FC = () => {
   const nav = useNavigate();
@@ -22,6 +23,28 @@ const AuthPage: React.FC = () => {
     if (mode === "register" && !/^\d{10}$/.test(form.phone)) e.phone = "10-digit phone";
     setErrors(e);
     return Object.keys(e).length === 0;
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    if (!credentialResponse.credential) return;
+    setLoading(true);
+    try {
+      const { data } = await apiGoogleAuth({
+        idToken: credentialResponse.credential,
+        role: "superadmin",
+      });
+      if (data.user.role !== "superadmin") {
+        toast.error("Unauthorized: Only super admins can access this portal.");
+        setLoading(false);
+        return;
+      }
+      setAuth(data.user, data.token);
+      toast.success("Welcome, Super Admin!");
+      nav("/create-store");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Google login failed");
+    }
+    setLoading(false);
   };
 
   const handleSubmit = async () => {
@@ -89,6 +112,21 @@ const AuthPage: React.FC = () => {
           <button onClick={handleSubmit} disabled={loading} className="btn-press" style={{ width: "100%", padding: 15, border: "none", borderRadius: 12, background: "linear-gradient(135deg,#6366F1,#EC4899)", color: "#fff", fontWeight: 700, fontSize: 16, marginTop: 8, opacity: loading ? 0.6 : 1, boxShadow: "0 6px 20px rgba(99,102,241,0.3)" }}>
             {loading ? "Please wait..." : mode === "register" ? "Create Account" : "Log In"}
           </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
+            <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+            <span style={{ fontSize: 13, color: "#94A3B8" }}>or</span>
+            <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 8 }}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error("Google login failed")}
+              size="large"
+              shape="pill"
+              text="signin_with"
+            />
+          </div>
         </div>
 
         <p style={{ textAlign: "center", marginTop: 20, fontSize: 14, color: "#94A3B8" }}>
