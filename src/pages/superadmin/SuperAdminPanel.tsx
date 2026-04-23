@@ -635,10 +635,14 @@ const SASubscriptions: React.FC = () => {
   const [paymentRequests, setPaymentRequests] = useState<any[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
 
-  // QR Code & Payment Info State
-  const [qrData, setQrData] = useState<any>({ paymentQrCodeUrl: "", paymentUpiId: "" });
+  // Platform Payment Credentials (Cashfree)
+  const [qrData, setQrData] = useState<any>({
+    cashfreeClientId: "",
+    cashfreeClientSecret: "",
+    cashfreeMode: "test",
+    cashfreeEnabled: true
+  });
   const [savingQr, setSavingQr] = useState(false);
-  const [uploadingQr, setUploadingQr] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -730,27 +734,13 @@ const SASubscriptions: React.FC = () => {
     try { await apiDeleteSaaSPlan(id); toast.success("Plan deleted"); loadData(); } catch { toast.error("Error"); }
   };
 
-  const handleQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingQr(true);
-    try {
-      const { data: res } = await apiUploadImage(file);
-      setQrData((prev: any) => ({ ...prev, paymentQrCodeUrl: res.url }));
-      toast.success("QR Code uploaded! Don't forget to save.");
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to upload image.");
-    }
-    setUploadingQr(false);
-  };
-
   const handleQrSave = async () => {
     setSavingQr(true);
     try {
       await apiUpdatePlatformSettings(qrData);
-      toast.success("Payment QR updated successfully!");
+      toast.success("Cashfree settings saved successfully!");
     } catch {
-      toast.error("Error saving QR code.");
+      toast.error("Error saving Cashfree settings.");
     }
     setSavingQr(false);
   };
@@ -926,80 +916,76 @@ const SASubscriptions: React.FC = () => {
             )}
           </div>
 
-          {/* QR Code Section */}
+          {/* Cashfree Integration Section */}
           <div style={{
-            background: "linear-gradient(135deg, #0F0F23, #1E1E3F)", borderRadius: 24,
-            padding: 32, display: "flex", gap: 32, alignItems: "center", flexWrap: "wrap",
-            position: "relative", overflow: "hidden"
+            background: "#fff", borderRadius: 24, padding: 32, border: "1px solid #E2E8F0",
+            marginBottom: 40, boxShadow: "0 4px 20px rgba(0,0,0,0.03)"
           }}>
-            <div style={{ position: "absolute", top: -50, right: -50, width: 200, height: 200, borderRadius: "50%", background: "rgba(99,102,241,0.1)" }} />
-            <div style={{ position: "absolute", bottom: -30, left: -30, width: 150, height: 150, borderRadius: "50%", background: "rgba(99,102,241,0.05)" }} />
-
-            <div style={{ flex: 1, minWidth: 300, position: "relative", zIndex: 1 }}>
-              <div style={{ display: "inline-flex", padding: "6px 14px", background: "rgba(99,102,241,0.2)", borderRadius: 8, marginBottom: 16 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#818CF8", letterSpacing: "1px" }}>PAYMENT GATEWAY</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 16, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CreditCard size={24} color="#2563EB" />
               </div>
-              <h3 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 8 }}>Global Payment QR Code</h3>
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginBottom: 24, lineHeight: 1.7 }}>
-                Upload your UPI QR code. Store owners will scan this QR when subscribing to a plan. After payment, they send screenshot via WhatsApp for activation.
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 16, marginBottom: 24 }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", marginBottom: 8, display: "block" }}>UPI ID FOR DIRECT PAYMENTS</label>
-                    <input 
-                      value={qrData.paymentUpiId || ""} 
-                      onChange={e => setQrData({ ...qrData, paymentUpiId: e.target.value })}
-                      placeholder="e.g. storename@upi" 
-                      style={{ 
-                        width: "100%", background: "rgba(255,255,255,0.05)", border: "1.5px solid rgba(255,255,255,0.1)",
-                        borderRadius: 12, padding: "12px 16px", color: "#fff", outline: "none"
-                      }} 
-                    />
-                  </div>
-                  <button onClick={handleQrSave} disabled={savingQr} style={{
-                    background: "#6366F1", color: "#fff", border: "none",
-                    padding: "12px 24px", borderRadius: 12, fontWeight: 700, fontSize: 13, cursor: "pointer",
-                    opacity: savingQr ? 0.5 : 1, transition: "all 0.2s", height: 46
-                  }}>
-                    {savingQr ? "Saving..." : "Save Payment Info"}
-                  </button>
-                </div>
-
-                <div style={{ display: "flex", gap: 12 }}>
-                  <label style={{
-                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.2)",
-                    padding: "12px 20px", borderRadius: 12, fontWeight: 700, fontSize: 13,
-                    cursor: "pointer", color: "#fff", transition: "all 0.2s", backdropFilter: "blur(4px)"
-                  }}>
-                    <IconImage /> {uploadingQr ? "Uploading..." : "Upload New QR"}
-                    <input type="file" accept="image/*" onChange={handleQrUpload} style={{ display: "none" }} disabled={uploadingQr} />
-                  </label>
-                </div>
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 800, color: "#1E293B" }}>Cashfree Automation</h3>
+                <p style={{ fontSize: 14, color: "#64748B" }}>Automate SaaS plan payments using Cashfree Gateway</p>
+              </div>
+              <div style={{ marginLeft: "auto" }}>
+                <button onClick={handleQrSave} disabled={savingQr} style={{
+                  background: "#2563EB", color: "#fff", border: "none",
+                  padding: "10px 24px", borderRadius: 12, fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  boxShadow: "0 4px 12px rgba(37,99,235,0.2)"
+                }}>
+                  {savingQr ? "Saving..." : "Save API Config"}
+                </button>
               </div>
             </div>
 
-            <div style={{
-              width: 200, height: 200, background: "rgba(255,255,255,0.05)", borderRadius: 20,
-              border: "2px dashed rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center",
-              overflow: "hidden", position: "relative", zIndex: 1, backdropFilter: "blur(4px)"
-            }}>
-              {qrData.paymentQrCodeUrl ? (
-                <div style={{ background: "#fff", borderRadius: 12, padding: 12, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <img src={qrData.paymentQrCodeUrl} alt="Payment QR" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8, display: "block" }}>CASHFREE CLIENT ID</label>
+                <input 
+                  value={qrData.cashfreeClientId || ""} 
+                  onChange={e => setQrData({ ...qrData, cashfreeClientId: e.target.value })}
+                  placeholder="e.g. CF1234567890" 
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid #E2E8F0", outline: "none", fontSize: 14 }} 
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8, display: "block" }}>CASHFREE CLIENT SECRET</label>
+                <input 
+                  type="password"
+                  value={qrData.cashfreeClientSecret || ""} 
+                  onChange={e => setQrData({ ...qrData, cashfreeClientSecret: e.target.value })}
+                  placeholder="••••••••••••••••" 
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid #E2E8F0", outline: "none", fontSize: 14 }} 
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 8, display: "block" }}>PAYMENT MODE</label>
+                <select 
+                  value={qrData.cashfreeMode || "test"} 
+                  onChange={e => setQrData({ ...qrData, cashfreeMode: e.target.value })}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid #E2E8F0", outline: "none", fontSize: 14, background: "#fff" }}
+                >
+                  <option value="test">Sandbox / Testing</option>
+                  <option value="production">Live / Production</option>
+                </select>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 28 }}>
+                <div 
+                  onClick={() => setQrData({ ...qrData, cashfreeEnabled: !qrData.cashfreeEnabled })}
+                  style={{ 
+                    width: 50, height: 26, borderRadius: 13, background: qrData.cashfreeEnabled ? "#10B981" : "#E2E8F0",
+                    padding: 3, cursor: "pointer", transition: "0.3s", display: "flex",
+                    justifyContent: qrData.cashfreeEnabled ? "flex-end" : "flex-start"
+                  }}
+                >
+                  <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#fff", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }} />
                 </div>
-              ) : (
-                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.3)" }}>
-                  <IconImage />
-                  <div style={{ fontSize: 11, fontWeight: 600, marginTop: 6 }}>No QR Uploaded</div>
-                </div>
-              )}
-              {uploadingQr && (
-                <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#818CF8", borderRadius: 20 }}>
-                  Uploading...
-                </div>
-              )}
+                <span style={{ fontSize: 14, fontWeight: 700, color: qrData.cashfreeEnabled ? "#10B981" : "#64748B" }}>
+                  {qrData.cashfreeEnabled ? "Gateway Active" : "Gateway Disabled"}
+                </span>
+              </div>
             </div>
           </div>
         </>
